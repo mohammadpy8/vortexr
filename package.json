@@ -1,0 +1,58 @@
+{
+  "name": "vortexr",
+  "version": "0.1.0",
+  "description": "Zero-dependency React router with nested layouts, dynamic routes, and full TypeScript support.",
+  "keywords": [
+    "react",
+    "router",
+    "routing",
+    "spa",
+    "nested-layouts",
+    "dynamic-routes",
+    "typescript",
+    "zero-dependency"
+  ],
+  "author": "Mohammad <mohammadpy8>",
+  "license": "MIT",
+  "homepage": "https://github.com/mohammadpy8/vortexr#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mohammadpy8/vortexr.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mohammadpy8/vortexr/issues"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  }
+}
