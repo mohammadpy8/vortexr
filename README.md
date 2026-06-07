@@ -1,9 +1,11 @@
 <div align="center">
 
+<br />
+
 # 🌀 vortexr
 
-**Zero-dependency React router.**  
-Nested layouts. Dynamic routes. Typed params. 3kb gzipped.
+**Zero-dependency React router.**
+Nested layouts. Dynamic routes. Guard chains. Typed params. ~3kb gzipped.
 
 <br />
 
@@ -44,16 +46,19 @@ vortexr            →  ~3kb gzipped   →  0 deps       ✓
 
 ## Features
 
-| | Feature | Details |
-|---|---|---|
-| 🧭 | **Nested layouts** | Stack layouts like Next.js App Router — without the framework |
-| 🔀 | **Dynamic segments** | `/users/:id/posts/:postId` — just works |
-| 🧩 | **Children routes** | Inherit parent path prefix and layout chain automatically |
-| 🔷 | **Full TypeScript** | Typed params, typed context, typed everything |
-| 🪶 | **Tiny** | ~3kb gzipped. Zero runtime dependencies |
-| ⚡ | **Fast** | No virtual DOM diffing on navigation. Direct pub/sub store |
-| 🌐 | **External URL aware** | `<Link>` degrades gracefully for `http://` URLs |
-| 🎯 | **NavLink** | Active class/style applied automatically on match |
+|     | Feature                  | Details                                                       |
+| --- | ------------------------ | ------------------------------------------------------------- |
+| 🧭  | **Nested layouts**       | Stack layouts like Next.js App Router — without the framework |
+| 🔀  | **Dynamic segments**     | `/users/:id/posts/:postId` just works                         |
+| 🧩  | **Children routes**      | Inherit parent path prefix and layout chain automatically     |
+| 🛡️  | **Route guards**         | Sync or async. Single guard or full middleware chain          |
+| 🔁  | **Guard inheritance**    | Child routes automatically inherit parent guards              |
+| ⏳  | **Async guard fallback** | Show a loader while async guards are resolving                |
+| 🔷  | **Full TypeScript**      | Typed params, typed guards, typed context — everything        |
+| 🪶  | **Tiny**                 | ~3kb gzipped. Zero runtime dependencies                       |
+| ⚡  | **Fast**                 | Direct pub/sub store. No virtual DOM overhead on navigation   |
+| 🌐  | **External URL aware**   | `<Link>` degrades gracefully for `http://` URLs               |
+| 🎯  | **NavLink**              | Active class/style applied automatically on path match        |
 
 ---
 
@@ -79,13 +84,12 @@ import { Router, Link, type RouteConfig } from "vortexr";
 function HomePage() {
   return <h1>Home</h1>;
 }
-
 function AboutPage() {
   return <h1>About</h1>;
 }
 
 const routes: RouteConfig[] = [
-  { path: "/",      component: HomePage },
+  { path: "/", component: HomePage },
   { path: "/about", component: AboutPage },
 ];
 
@@ -141,7 +145,7 @@ const routes: RouteConfig[] = [
       {
         path: "/settings",
         component: SettingsPage,
-        layout: DashboardLayout,  // stacks on top of RootLayout
+        layout: DashboardLayout, // stacks on top of RootLayout
       },
     ],
   },
@@ -164,22 +168,155 @@ RootLayout
 // Route: /users/:id/posts/:postId
 function PostPage() {
   const { id, postId } = useParams<{ id: string; postId: string }>();
-  return <p>User {id} — Post {postId}</p>;
+  return (
+    <p>
+      User {id} — Post {postId}
+    </p>
+  );
 }
 
-const routes: RouteConfig[] = [
-  { path: "/users/:id/posts/:postId", component: PostPage },
-];
+const routes: RouteConfig[] = [{ path: "/users/:id/posts/:postId", component: PostPage }];
 ```
 
 Supported patterns:
 
-| Pattern | Example URL | Params |
-|---|---|---|
-| `/users/:id` | `/users/42` | `{ id: "42" }` |
-| `/posts/:slug` | `/posts/hello-world` | `{ slug: "hello-world" }` |
-| `/a/:x/b/:y` | `/a/1/b/2` | `{ x: "1", y: "2" }` |
-| `/docs/*` | `/docs/anything/here` | — |
+| Pattern        | Example URL           | Extracted Params          |
+| -------------- | --------------------- | ------------------------- |
+| `/users/:id`   | `/users/42`           | `{ id: "42" }`            |
+| `/posts/:slug` | `/posts/hello-world`  | `{ slug: "hello-world" }` |
+| `/a/:x/b/:y`   | `/a/1/b/2`            | `{ x: "1", y: "2" }`      |
+| `/docs/*`      | `/docs/anything/here` | —                         |
+
+---
+
+## Route Guards
+
+Guards are functions that run **before** a route renders. They can be sync or async. They decide whether to allow or deny navigation.
+
+A guard returns:
+
+- `true` → allow, continue to the next guard
+- `false` → deny, redirect to `redirectTo`
+- `"/some/path"` → deny, redirect to that specific path
+
+### Single Guard
+
+```tsx
+const isAuthenticated = () => Boolean(localStorage.getItem("token"));
+
+const routes: RouteConfig[] = [
+  {
+    path: "/dashboard",
+    component: DashboardPage,
+    guard: isAuthenticated,
+    redirectTo: "/login", // where to go if guard returns false
+  },
+];
+```
+
+### Async Guard
+
+```tsx
+const isAdmin = async () => {
+  const user = await fetchCurrentUser();
+  if (user.role === "admin") return true;
+  return "/403"; // redirect to /403 directly from the guard
+};
+
+const routes: RouteConfig[] = [
+  {
+    path: "/admin",
+    component: AdminPage,
+    guard: isAdmin,
+    guardFallback: LoadingSpinner, // shown while the async guard resolves
+  },
+];
+```
+
+### Guard Chain (middleware)
+
+All guards in the chain must pass. Stops at the first failure.
+
+```tsx
+const isAuthenticated = () => Boolean(localStorage.getItem("token"));
+
+const isAdmin = async () => {
+  const user = await fetchCurrentUser();
+  return user.role === "admin";
+};
+
+const routes: RouteConfig[] = [
+  {
+    path: "/admin",
+    component: AdminPage,
+    guards: [isAuthenticated, isAdmin], // runs in order, short-circuits on first failure
+    redirectTo: "/login",
+    guardFallback: LoadingSpinner,
+  },
+];
+```
+
+### Guard Factory
+
+Build reusable guards that accept parameters.
+
+```tsx
+const hasRole =
+  (required: string): GuardFn =>
+  async () => {
+    const user = await fetchCurrentUser();
+    return user.role === required;
+  };
+
+const hasPermission =
+  (permission: string): GuardFn =>
+  async () => {
+    const user = await fetchCurrentUser();
+    return user.permissions.includes(permission);
+  };
+
+const routes: RouteConfig[] = [
+  {
+    path: "/editor",
+    component: EditorPage,
+    guards: [isAuthenticated, hasRole("editor"), hasPermission("write")],
+    redirectTo: "/403",
+  },
+];
+```
+
+### Guard Inheritance
+
+Child routes **automatically inherit** parent guards. You don't need to repeat them.
+
+```tsx
+const routes: RouteConfig[] = [
+  {
+    path: "/dashboard",
+    component: DashboardPage,
+    guard: isAuthenticated, // ← defined once on parent
+    redirectTo: "/login",
+    children: [
+      {
+        path: "/settings",
+        component: SettingsPage,
+        // isAuthenticated is automatically inherited here
+      },
+      {
+        path: "/admin",
+        component: AdminSection,
+        guard: isAdmin, // runs AFTER the inherited isAuthenticated
+      },
+    ],
+  },
+];
+```
+
+Guard execution order for `/dashboard/admin`:
+
+```
+isAuthenticated  →  isAdmin  →  render AdminSection
+```
 
 ---
 
@@ -189,22 +326,22 @@ Supported patterns:
 
 #### `<Router>`
 
-The root component. Match the current URL against your route config and render the result.
+The root component. Matches the current URL, runs guards, and renders the page in its layout chain.
 
 ```tsx
 <Router routes={routes} notFound={MyCustom404} />
 ```
 
-| Prop | Type | Required | Description |
-|---|---|---|---|
-| `routes` | `RouteConfig[]` | ✅ | Array of route definitions |
-| `notFound` | `ComponentType` | ❌ | Custom 404 page. Defaults to built-in screen |
+| Prop       | Type            | Required | Description                                  |
+| ---------- | --------------- | -------- | -------------------------------------------- |
+| `routes`   | `RouteConfig[]` | ✅       | Array of route definitions                   |
+| `notFound` | `ComponentType` | ❌       | Custom 404 page. Defaults to built-in screen |
 
 ---
 
 #### `<Link>`
 
-Client-side navigation. Zero page reload. Degrades to `<a>` for external URLs.
+Client-side navigation. Zero page reload. Degrades to a normal `<a>` for external URLs.
 
 ```tsx
 <Link to="/dashboard">Dashboard</Link>
@@ -212,11 +349,11 @@ Client-side navigation. Zero page reload. Degrades to `<a>` for external URLs.
 <Link to="https://github.com" target="_blank">GitHub</Link>
 ```
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `to` | `string` | — | Target path or URL |
-| `replace` | `boolean` | `false` | Use `replaceState` instead of `pushState` |
-| `...rest` | `AnchorHTMLAttributes` | — | All standard `<a>` props are forwarded |
+| Prop      | Type                   | Default | Description                               |
+| --------- | ---------------------- | ------- | ----------------------------------------- |
+| `to`      | `string`               | —       | Target path or URL                        |
+| `replace` | `boolean`              | `false` | Use `replaceState` instead of `pushState` |
+| `...rest` | `AnchorHTMLAttributes` | —       | All standard `<a>` props are forwarded    |
 
 ---
 
@@ -225,7 +362,7 @@ Client-side navigation. Zero page reload. Degrades to `<a>` for external URLs.
 Like `<Link>`, but automatically marks itself active when the path matches.
 
 ```tsx
-<NavLink to="/dashboard" activeClassName="text-blue-500 font-bold">
+<NavLink to="/dashboard" activeClassName="font-bold text-blue-500">
   Dashboard
 </NavLink>
 
@@ -234,19 +371,19 @@ Like `<Link>`, but automatically marks itself active when the path matches.
 </NavLink>
 ```
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `to` | `string` | — | Target path |
-| `activeClassName` | `string` | `"active"` | Class applied when active |
-| `activeStyle` | `CSSProperties` | — | Inline style applied when active |
-| `exact` | `boolean` | `true` | Match full path or prefix |
-| `...rest` | `LinkProps` | — | All `<Link>` props are forwarded |
+| Prop              | Type            | Default    | Description                      |
+| ----------------- | --------------- | ---------- | -------------------------------- |
+| `to`              | `string`        | —          | Target path                      |
+| `activeClassName` | `string`        | `"active"` | Class applied when active        |
+| `activeStyle`     | `CSSProperties` | —          | Inline style applied when active |
+| `exact`           | `boolean`       | `true`     | Match full path or just prefix   |
+| `...rest`         | `LinkProps`     | —          | All `<Link>` props are forwarded |
 
 ---
 
 #### `<Navigate>`
 
-Redirect when rendered. Great for auth guards and conditional redirects.
+Redirect imperatively when rendered. Perfect for auth guards and conditional redirects.
 
 ```tsx
 function ProtectedPage() {
@@ -255,9 +392,9 @@ function ProtectedPage() {
 }
 ```
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `to` | `string` | — | Redirect target |
+| Prop      | Type      | Default | Description                               |
+| --------- | --------- | ------- | ----------------------------------------- |
+| `to`      | `string`  | —       | Redirect target path                      |
 | `replace` | `boolean` | `false` | Use `replaceState` instead of `pushState` |
 
 ---
@@ -266,23 +403,23 @@ function ProtectedPage() {
 
 #### `useRouter`
 
-Returns navigation methods. Stable references — safe to use in event handlers.
+Returns navigation methods. Stable references — safe in event handlers and `useEffect`.
 
 ```tsx
 const { push, replace, back, forward } = useRouter();
 
-push("/dashboard");     // add new history entry
-replace("/login");      // replace current entry
-back();                 // go back one step
-forward();              // go forward one step
+push("/dashboard"); // add new history entry
+replace("/login"); // replace current entry (no back button)
+back(); // go back one step
+forward(); // go forward one step
 ```
 
-| Return | Type | Description |
-|---|---|---|
-| `push` | `(path: string) => void` | Navigate to a new path |
+| Return    | Type                     | Description                   |
+| --------- | ------------------------ | ----------------------------- |
+| `push`    | `(path: string) => void` | Navigate to a new path        |
 | `replace` | `(path: string) => void` | Replace current history entry |
-| `back` | `() => void` | `history.back()` |
-| `forward` | `() => void` | `history.forward()` |
+| `back`    | `() => void`             | `history.back()`              |
+| `forward` | `() => void`             | `history.forward()`           |
 
 ---
 
@@ -295,44 +432,46 @@ const pathname = usePathname();
 // → "/users/42"
 ```
 
-| Return | Type | Description |
-|---|---|---|
+| Return     | Type     | Description                        |
+| ---------- | -------- | ---------------------------------- |
 | `pathname` | `string` | Current `window.location.pathname` |
 
 ---
 
 #### `useParams`
 
-Returns the dynamic segments extracted from the matched route. Fully typed with generics.
+Returns the dynamic segments extracted from the matched route. Fully typed via generics.
 
 ```tsx
 // Route: /users/:id/posts/:postId
+// URL:   /users/42/posts/7
 const { id, postId } = useParams<{ id: string; postId: string }>();
+// → { id: "42", postId: "7" }
 ```
 
-| Signature | Description |
-|---|---|
-| `useParams<T>()` | Returns `T` (defaults to `Record<string, string>`) |
+| Signature        | Description                                       |
+| ---------------- | ------------------------------------------------- |
+| `useParams<T>()` | Returns `T`. Defaults to `Record<string, string>` |
 
 ---
 
 #### `useSearchParams`
 
-Read and write URL query params. Reactive — updates on every navigation.
+Read and write URL search params. Reactive — re-renders on every navigation.
 
 ```tsx
 const [params, setParams] = useSearchParams();
 
-const page = params.get("page");       // → "2"
-const q    = params.get("q");          // → "react"
+const page = params.get("page"); // → "2"
+const q = params.get("q"); // → "react"
 
 setParams({ page: "3", q: "hooks" }); // → ?page=3&q=hooks
 ```
 
-| Return | Type | Description |
-|---|---|---|
-| `[0]` | `URLSearchParams` | Current search params (read) |
-| `[1]` | `(params: Record<string, string>) => void` | Set new params (write) |
+| Return | Type                                       | Description                  |
+| ------ | ------------------------------------------ | ---------------------------- |
+| `[0]`  | `URLSearchParams`                          | Current search params (read) |
+| `[1]`  | `(params: Record<string, string>) => void` | Set new params (write)       |
 
 ---
 
@@ -346,18 +485,45 @@ type RouteConfig = {
   /** Page component rendered when this route matches. */
   component: ComponentType;
 
-  /**
-   * Optional layout wrapping the page.
-   * Must accept a `children` prop.
-   */
+  /** Optional layout wrapping the page. Must accept a `children` prop. */
   layout?: ComponentType<{ children: ReactNode }>;
 
-  /**
-   * Nested child routes.
-   * They inherit the parent path prefix and layout chain.
-   */
+  /** Nested child routes. Inherit parent path, layouts, and guards. */
   children?: RouteConfig[];
+
+  /** Single guard function. */
+  guard?: GuardFn;
+
+  /** Guard middleware chain. All must pass. Runs after `guard` if both are set. */
+  guards?: GuardFn[];
+
+  /**
+   * Where to redirect if any guard fails.
+   * Overridden if the guard returns a string path directly.
+   * Defaults to "/".
+   */
+  redirectTo?: string;
+
+  /** Component shown while async guards are resolving. Defaults to null. */
+  guardFallback?: ComponentType;
 };
+```
+
+---
+
+### Guard Types
+
+```ts
+/**
+ * A guard function. Can be sync or async.
+ *
+ * Return true      → allow, continue to next guard
+ * Return false     → deny, redirect to route's `redirectTo`
+ * Return "/path"   → deny, redirect to that specific path
+ */
+type GuardFn = () => boolean | string | Promise<boolean | string>;
+
+type GuardResult = { allowed: true } | { allowed: false; redirectTo: string };
 ```
 
 ---
@@ -369,27 +535,80 @@ For navigation outside React components — auth interceptors, global error hand
 ```ts
 import { routerStore } from "vortexr";
 
-// Navigate
 routerStore.push("/dashboard");
 routerStore.replace("/login");
+routerStore.back();
+routerStore.forward();
 
-// Listen to path changes
+const path = routerStore.getPath(); // → "/current/path"
+
 const unsubscribe = routerStore.subscribe((path) => {
   console.log("navigated to:", path);
 });
 
-// Stop listening
-unsubscribe();
+unsubscribe(); // stop listening
 ```
 
-| Method | Signature | Description |
-|---|---|---|
-| `push` | `(path: string) => void` | Push new history entry |
-| `replace` | `(path: string) => void` | Replace current entry |
-| `back` | `() => void` | Go back |
-| `forward` | `() => void` | Go forward |
-| `getPath` | `() => string` | Get current pathname |
+| Method      | Signature                      | Description               |
+| ----------- | ------------------------------ | ------------------------- |
+| `push`      | `(path: string) => void`       | Push new history entry    |
+| `replace`   | `(path: string) => void`       | Replace current entry     |
+| `back`      | `() => void`                   | Go back                   |
+| `forward`   | `() => void`                   | Go forward                |
+| `getPath`   | `() => string`                 | Get current pathname      |
 | `subscribe` | `(fn: Listener) => () => void` | Subscribe to path changes |
+
+---
+
+### Advanced: `runGuards`
+
+Run a guard chain manually — outside of the router, in your own logic.
+
+```ts
+import { runGuards } from "vortexr";
+
+const result = await runGuards([isAuthenticated, isAdmin], "/login");
+
+if (result.allowed) {
+  console.log("access granted");
+} else {
+  console.log("redirect to:", result.redirectTo);
+}
+```
+
+---
+
+## How It Works
+
+```
+URL change (pushState / popstate)
+        │
+        ▼
+   routerStore                ← pub/sub wrapper around History API
+        │
+        ▼
+  usePathname()               ← useState + subscribe → triggers re-render
+        │
+        ▼
+   <Router />                 ← flattenRoutes → matchPath → pick winner
+        │
+        ▼
+  <GuardedRoute />            ← runs guard chain (sync or async)
+        │
+     ┌──┴──┐
+   deny   allow
+     │      │
+  redirect  ▼
+         layout chain         ← reduceRight: RootLayout → DashboardLayout → Page
+              │
+              ▼
+        RouterContext          ← provides { pathname, params, push, replace, ... }
+              │
+              ▼
+          Page renders         ← useParams(), useRouter(), useSearchParams()
+```
+
+No virtual DOM overhead on navigation. No re-rendering the whole tree. A single `setState` in `usePathname` triggers only the components that subscribed.
 
 ---
 
@@ -398,12 +617,17 @@ unsubscribe();
 ```
 src/
 ├── router/
-│   └── routes.tsx          ← all routes defined here
+│   └── routes.tsx            ← all route definitions in one place
+│
+├── guards/
+│   ├── isAuthenticated.ts    ← () => Boolean(token)
+│   ├── isAdmin.ts            ← async role check
+│   └── hasRole.ts            ← guard factory
 │
 ├── layouts/
-│   ├── RootLayout.tsx       ← global nav, footer
-│   ├── DashboardLayout.tsx  ← sidebar, sub-nav
-│   └── AuthLayout.tsx       ← centered card for login/signup
+│   ├── RootLayout.tsx        ← global nav, footer
+│   ├── DashboardLayout.tsx   ← sidebar, breadcrumbs
+│   └── AuthLayout.tsx        ← centered card for login/signup
 │
 ├── pages/
 │   ├── home/
@@ -422,48 +646,19 @@ src/
 
 ---
 
-## How It Works
-
-```
-URL change (pushState / popstate)
-        │
-        ▼
-   routerStore          ← pub/sub, wraps History API
-        │
-        ▼
-  usePathname()         ← useState + subscribe
-        │
-        ▼
-   <Router />           ← flattenRoutes → matchPath → pick winner
-        │
-        ▼
-  layout chain          ← reduceRight: RootLayout → DashboardLayout → Page
-        │
-        ▼
-  RouterContext         ← provides { pathname, params, push, replace, ... }
-        │
-        ▼
-   Page renders         ← useParams(), useRouter(), useSearchParams()
-```
-
-No virtual DOM overhead on navigation. No re-rendering the whole tree. Just a single `setState` in `usePathname` that triggers only the components that care.
-
----
-
 ## Roadmap
 
 - [ ] `<Outlet />` — true nested rendering without config
 - [ ] Route-level `loader` — fetch data before the page renders
-- [ ] Route guards / middleware — intercept navigation
 - [ ] `React.lazy` + `<Suspense>` — code-split routes automatically
 - [ ] Scroll restoration — restore scroll position on back/forward
-- [ ] Hash routing mode — `#/path` support for static hosts
+- [ ] Hash routing mode — `#/path` for static hosts
 
 ---
 
 ## Contributing
 
-PRs are welcome. Open an issue first for big changes.
+PRs are welcome. Open an issue first for bigger changes.
 
 ```bash
 git clone https://github.com/mohammadpy8/vortexr
