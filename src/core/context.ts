@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import type { RouterContextValue } from "../types";
-import { routerStore } from "../core/store";
+import { routerStore } from "./store";
 
 const defaultValue: RouterContextValue = {
   pathname: typeof window !== "undefined" ? window.location.pathname : "/",

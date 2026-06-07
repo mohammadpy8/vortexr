@@ -27,7 +27,7 @@ export function matchPath(pattern: string, path: string): MatchResult {
 
   const params = paramNames.reduce(
     (acc, name, i) => ({ ...acc, [name]: decodeURIComponent(match[i + 1]) }),
-    {} as Record<string, string>
+    {} as Record<string, string>,
   );
 
   return { matched: true, params };

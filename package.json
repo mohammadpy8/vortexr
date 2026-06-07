@@ -1,7 +1,7 @@
 {
   "name": "vortexr",
   "version": "0.1.0",
-  "description": "Zero-dependency React router with nested layouts, dynamic routes, and full TypeScript support.",
+  "description": "Zero-dependency React router with nested layouts, dynamic routes, guard chains, and full TypeScript support.",
   "keywords": [
     "react",
     "router",
@@ -9,6 +9,8 @@
     "spa",
     "nested-layouts",
     "dynamic-routes",
+    "route-guards",
+    "middleware",
     "typescript",
     "zero-dependency"
   ],

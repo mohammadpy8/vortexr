@@ -1,5 +1,17 @@
 import type { ComponentType, ReactNode } from "react";
 
+/**
+ * A guard function. Can be sync or async.
+ * Return `true`  → allow navigation
+ * Return `false` → deny and redirect to `redirectTo`
+ * Return `string`→ deny and redirect to that specific path
+ */
+export type GuardFn = () => boolean | string | Promise<boolean | string>;
+
+/**
+ * Result after running the guard chain.
+ */
+export type GuardResult = { allowed: true } | { allowed: false; redirectTo: string };
 
 export type RouteConfig = {
   /** The path pattern. Supports dynamic segments: /users/:id */
@@ -16,7 +28,7 @@ export type RouteConfig = {
 
   /**
    * Nested child routes.
-   * They inherit the parent path prefix automatically.
+   * They inherit the parent path prefix and layout chain automatically.
    *
    * @example
    * {
@@ -25,11 +37,38 @@ export type RouteConfig = {
    *   layout: DashboardLayout,
    *   children: [
    *     { path: "/settings", component: SettingsPage },
-   *     { path: "/profile",  component: ProfilePage  },
    *   ]
    * }
    */
   children?: RouteConfig[];
+
+  /**
+   * A single guard function OR an array forming a middleware chain.
+   * All guards must pass (return true) for the route to render.
+   * Any guard can return a redirect path string instead of false.
+   *
+   * @example
+   * // Single guard
+   * guard: () => isLoggedIn()
+   *
+   * // Middleware chain — all must pass
+   * guards: [isAuthenticated, isVerified, hasRole("admin")]
+   */
+  guard?: GuardFn;
+  guards?: GuardFn[];
+
+  /**
+   * Where to redirect if a guard fails.
+   * Can be overridden by returning a string from the guard itself.
+   * Defaults to "/"
+   */
+  redirectTo?: string;
+
+  /**
+   * Optional loading component shown while async guards are resolving.
+   * Defaults to null (nothing shown during async guard evaluation).
+   */
+  guardFallback?: ComponentType;
 };
 
 export type MatchResult = {
@@ -41,6 +80,9 @@ export type FlatRoute = {
   path: string;
   component: ComponentType;
   layouts: ComponentType<{ children: ReactNode }>[];
+  guards: GuardFn[];
+  redirectTo: string;
+  guardFallback?: ComponentType;
 };
 
 export type RouterContextValue = {
