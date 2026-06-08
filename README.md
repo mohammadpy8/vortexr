@@ -79,7 +79,7 @@ pnpm add vortexr
 ## Quick Start
 
 ```tsx
-import { Router, Link, type RouteConfig } from "vortexr";
+import { Router, Link, defineRouteConfig } from "vortexr";
 
 function HomePage() {
   return <h1>Home</h1>;
@@ -88,10 +88,10 @@ function AboutPage() {
   return <h1>About</h1>;
 }
 
-const routes: RouteConfig[] = [
+const routes = defineRouteConfig([
   { path: "/", component: HomePage },
   { path: "/about", component: AboutPage },
-];
+]);
 
 export default function App() {
   return <Router routes={routes} />;
@@ -131,7 +131,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-const routes: RouteConfig[] = [
+const routes = defineRouteConfig([
   {
     path: "/",
     component: HomePage,
@@ -149,7 +149,7 @@ const routes: RouteConfig[] = [
       },
     ],
   },
-];
+]);
 ```
 
 The render chain goes **outside → in**:
@@ -175,7 +175,7 @@ function PostPage() {
   );
 }
 
-const routes: RouteConfig[] = [{ path: "/users/:id/posts/:postId", component: PostPage }];
+const routes = defineRouteConfig([{ path: "/users/:id/posts/:postId", component: PostPage }]);
 ```
 
 Supported patterns:
@@ -204,14 +204,14 @@ A guard returns:
 ```tsx
 const isAuthenticated = () => Boolean(localStorage.getItem("token"));
 
-const routes: RouteConfig[] = [
+const routes = defineRouteConfig([
   {
     path: "/dashboard",
     component: DashboardPage,
     guard: isAuthenticated,
     redirectTo: "/login", // where to go if guard returns false
   },
-];
+]);
 ```
 
 ### Async Guard
@@ -223,14 +223,14 @@ const isAdmin = async () => {
   return "/403"; // redirect to /403 directly from the guard
 };
 
-const routes: RouteConfig[] = [
+const routes = defineRouteConfig([
   {
     path: "/admin",
     component: AdminPage,
     guard: isAdmin,
     guardFallback: LoadingSpinner, // shown while the async guard resolves
   },
-];
+]);
 ```
 
 ### Guard Chain (middleware)
@@ -245,7 +245,7 @@ const isAdmin = async () => {
   return user.role === "admin";
 };
 
-const routes: RouteConfig[] = [
+const routes = defineRouteConfig([
   {
     path: "/admin",
     component: AdminPage,
@@ -253,7 +253,7 @@ const routes: RouteConfig[] = [
     redirectTo: "/login",
     guardFallback: LoadingSpinner,
   },
-];
+]);
 ```
 
 ### Guard Factory
@@ -275,14 +275,14 @@ const hasPermission =
     return user.permissions.includes(permission);
   };
 
-const routes: RouteConfig[] = [
+const routes = defineRouteConfig([
   {
     path: "/editor",
     component: EditorPage,
     guards: [isAuthenticated, hasRole("editor"), hasPermission("write")],
     redirectTo: "/403",
   },
-];
+]);
 ```
 
 ### Guard Inheritance
@@ -290,7 +290,7 @@ const routes: RouteConfig[] = [
 Child routes **automatically inherit** parent guards. You don't need to repeat them.
 
 ```tsx
-const routes: RouteConfig[] = [
+const routes = defineRouteConfig([
   {
     path: "/dashboard",
     component: DashboardPage,
@@ -309,7 +309,7 @@ const routes: RouteConfig[] = [
       },
     ],
   },
-];
+]);
 ```
 
 Guard execution order for `/dashboard/admin`:

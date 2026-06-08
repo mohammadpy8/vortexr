@@ -13,6 +13,7 @@ import {
   useParams,
   usePathname,
   useSearchParams,
+  defineRouteConfig,
   type RouteConfig,
   type GuardFn,
 } from "vortexr";
@@ -185,7 +186,7 @@ function ForbiddenPage() {
   );
 }
 
-const routes: RouteConfig[] = [
+const routes = defineRouteConfig([
   {
     path: "/",
     component: HomePage,
@@ -250,8 +251,8 @@ const routes: RouteConfig[] = [
     guards: [isAuthenticated, hasRole("editor")],
     redirectTo: "/403",
     guardFallback: GuardLoader,
-  },
-];
+  }
+]);
 
 export default function App() {
   return <Router routes={routes} />;

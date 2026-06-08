@@ -6,5 +6,6 @@ export { routerStore } from "./core/store";
 export { RouterContext } from "./core/context";
 
 export { runGuards } from "./utils/guards";
+export { default as defineRouteConfig } from "./utils/defineRouteConfig";
 
 export type { RouteConfig, GuardFn, GuardResult, MatchResult, RouterContextValue } from "./types";
