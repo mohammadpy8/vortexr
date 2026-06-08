@@ -12,7 +12,7 @@ import type { FlatRoute, GuardFn, RouteConfig } from "../types";
 export function flattenRoutes(
   routes: RouteConfig[],
   parentPath = "",
-  parentLayouts: ComponentType<{ children: ReactNode }>[] = [],
+  parentLayouts: (({ children }: { children: ReactNode }) => JSX.Element)[] = [],
   parentGuards: GuardFn[] = [],
   parentRedirectTo = "/",
 ): FlatRoute[] {

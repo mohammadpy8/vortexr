@@ -18,13 +18,13 @@ export type RouteConfig = {
   path: string;
 
   /** The page component to render when this route matches */
-  component: ComponentType;
+  component: () => JSX.Element;
 
   /**
    * Optional layout component wrapping the page.
    * Receives `children` (the page) as a prop.
    */
-  layout?: ComponentType<{ children: ReactNode }>;
+  layout?: ({ children }: { children: ReactNode }) => JSX.Element;
 
   /**
    * Nested child routes.
@@ -68,7 +68,7 @@ export type RouteConfig = {
    * Optional loading component shown while async guards are resolving.
    * Defaults to null (nothing shown during async guard evaluation).
    */
-  guardFallback?: ComponentType;
+  guardFallback?: () => JSX.Element;
 };
 
 export type MatchResult = {
@@ -78,11 +78,11 @@ export type MatchResult = {
 
 export type FlatRoute = {
   path: string;
-  component: ComponentType;
-  layouts: ComponentType<{ children: ReactNode }>[];
+  component: () => JSX.Element;
+  layouts: (({ children }: { children: ReactNode }) => JSX.Element)[];
   guards: GuardFn[];
   redirectTo: string;
-  guardFallback?: ComponentType;
+  guardFallback?: () => JSX.Element;
 };
 
 export type RouterContextValue = {
