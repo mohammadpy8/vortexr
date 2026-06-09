@@ -4,10 +4,10 @@ import type { MatchResult } from "../types";
  * Matches a path pattern against an actual URL path.
  *
  * Supports:
- * - Static segments:  /about
- * - Dynamic segments: /users/:id
- * - Wildcards:        /docs/*
- * - Multiple params:  /posts/:slug/comments/:commentId
+ * - Static segments:   /about
+ * - Dynamic segments:  /users/:id
+ * - Multiple params:   /posts/:slug/comments/:commentId
+ * - Wildcards:         /docs/*
  */
 export function matchPath(pattern: string, path: string): MatchResult {
   const paramNames: string[] = [];

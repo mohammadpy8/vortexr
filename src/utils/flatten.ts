@@ -1,20 +1,21 @@
-import type { ComponentType, ReactNode } from "react";
-import type { FlatRoute, GuardFn, RouteConfig } from "../types";
+import type { FlatRoute, GuardFn, RouteConfig, VortexrErrorFallback, VortexrLayout } from "../types";
 
 /**
  * Recursively flattens a nested route tree into a flat array.
  *
- * - Child routes inherit parent path prefix
- * - Child routes accumulate parent layouts (outside → in)
- * - Child routes inherit parent guards (all must pass)
- * - Child routes inherit parent redirectTo (unless overridden)
+ * Each entry in the result has:
+ * - Full absolute path
+ * - Accumulated layout chain (outside → in)
+ * - Accumulated guard chain (parent guards run first)
+ * - Inherited redirectTo and errorFallback
  */
 export function flattenRoutes(
   routes: RouteConfig[],
   parentPath = "",
-  parentLayouts: (({ children }: { children: ReactNode }) => JSX.Element)[] = [],
+  parentLayouts: VortexrLayout[] = [],
   parentGuards: GuardFn[] = [],
   parentRedirectTo = "/",
+  parentErrorFallback?: VortexrErrorFallback,
 ): FlatRoute[] {
   const result: FlatRoute[] = [];
 
@@ -27,6 +28,7 @@ export function flattenRoutes(
     const guards = [...parentGuards, ...routeGuards];
 
     const redirectTo = route.redirectTo ?? parentRedirectTo;
+    const errorFallback = route.errorFallback ?? parentErrorFallback;
 
     result.push({
       path: fullPath,
@@ -35,10 +37,11 @@ export function flattenRoutes(
       guards,
       redirectTo,
       guardFallback: route.guardFallback,
+      errorFallback,
     });
 
     if (route.children?.length) {
-      result.push(...flattenRoutes(route.children, fullPath, layouts, guards, redirectTo));
+      result.push(...flattenRoutes(route.children, fullPath, layouts, guards, redirectTo, errorFallback));
     }
   }
 

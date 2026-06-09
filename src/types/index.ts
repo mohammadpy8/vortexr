@@ -1,74 +1,55 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ReactNode } from "react";
+
+export type VortexrComponent = () => ReactNode;
+export type VortexrLayout = (props: { children: ReactNode }) => ReactNode;
 
 /**
  * A guard function. Can be sync or async.
- * Return `true`  → allow navigation
- * Return `false` → deny and redirect to `redirectTo`
- * Return `string`→ deny and redirect to that specific path
+ *
+ * Return `true`   → allow, continue to next guard
+ * Return `false`  → deny, redirect to route's `redirectTo`
+ * Return `string` → deny, redirect to that specific path
  */
 export type GuardFn = () => boolean | string | Promise<boolean | string>;
-
-/**
- * Result after running the guard chain.
- */
 export type GuardResult = { allowed: true } | { allowed: false; redirectTo: string };
 
+export type ErrorInfo = {
+  error: Error;
+  reset: () => void;
+};
+
+export type VortexrErrorFallback = (info: ErrorInfo) => ReactNode;
+
 export type RouteConfig = {
-  /** The path pattern. Supports dynamic segments: /users/:id */
+  /** Path pattern. Supports :param and * wildcard. */
   path: string;
 
-  /** The page component to render when this route matches */
-  component: () => JSX.Element;
+  /** Page component rendered when this route matches. */
+  component: VortexrComponent;
 
-  /**
-   * Optional layout component wrapping the page.
-   * Receives `children` (the page) as a prop.
-   */
-  layout?: ({ children }: { children: ReactNode }) => JSX.Element;
+  /** Optional layout wrapping the page. Must accept a `children` prop. */
+  layout?: VortexrLayout;
 
-  /**
-   * Nested child routes.
-   * They inherit the parent path prefix and layout chain automatically.
-   *
-   * @example
-   * {
-   *   path: "/dashboard",
-   *   component: DashboardPage,
-   *   layout: DashboardLayout,
-   *   children: [
-   *     { path: "/settings", component: SettingsPage },
-   *   ]
-   * }
-   */
+  /** Nested child routes. Inherit parent path, layouts, and guards. */
   children?: RouteConfig[];
 
-  /**
-   * A single guard function OR an array forming a middleware chain.
-   * All guards must pass (return true) for the route to render.
-   * Any guard can return a redirect path string instead of false.
-   *
-   * @example
-   * // Single guard
-   * guard: () => isLoggedIn()
-   *
-   * // Middleware chain — all must pass
-   * guards: [isAuthenticated, isVerified, hasRole("admin")]
-   */
+  /** Single guard function. */
   guard?: GuardFn;
+
+  /** Guard middleware chain. All must pass. Runs after `guard` if both are set. */
   guards?: GuardFn[];
 
-  /**
-   * Where to redirect if a guard fails.
-   * Can be overridden by returning a string from the guard itself.
-   * Defaults to "/"
-   */
+  /** Where to redirect if any guard fails. Defaults to "/" */
   redirectTo?: string;
 
+  /** Component shown while async guards are resolving. */
+  guardFallback?: VortexrComponent;
+
   /**
-   * Optional loading component shown while async guards are resolving.
-   * Defaults to null (nothing shown during async guard evaluation).
+   * Custom error fallback for this route.
+   * Overrides the Router-level errorFallback.
    */
-  guardFallback?: () => JSX.Element;
+  errorFallback?: VortexrErrorFallback;
 };
 
 export type MatchResult = {
@@ -78,11 +59,12 @@ export type MatchResult = {
 
 export type FlatRoute = {
   path: string;
-  component: () => JSX.Element;
-  layouts: (({ children }: { children: ReactNode }) => JSX.Element)[];
+  component: VortexrComponent;
+  layouts: VortexrLayout[];
   guards: GuardFn[];
   redirectTo: string;
-  guardFallback?: () => JSX.Element;
+  guardFallback?: VortexrComponent;
+  errorFallback?: VortexrErrorFallback;
 };
 
 export type RouterContextValue = {
@@ -92,6 +74,10 @@ export type RouterContextValue = {
   replace: (path: string) => void;
   back: () => void;
   forward: () => void;
+};
+
+export type OutletContextValue = {
+  outlet: ReactNode | null;
 };
 
 export type Listener = (path: string) => void;

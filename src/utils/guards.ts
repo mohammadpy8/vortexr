@@ -2,15 +2,12 @@ import type { GuardFn, GuardResult } from "../types";
 
 /**
  * Runs a chain of guard functions in sequence.
+ * Stops at the first failing guard (short-circuit).
  *
- * - Stops at the first failing guard (short-circuit)
- * - Each guard can return:
- *     true          → pass, continue to next guard
- *     false         → fail, redirect to `defaultRedirectTo`
- *     "/some/path"  → fail, redirect to that specific path
- *
- * @param guards          Array of guard functions to run
- * @param defaultRedirectTo  Fallback redirect path if a guard returns false
+ * Each guard can return:
+ *   true          → pass, continue to next guard
+ *   false         → fail, redirect to `defaultRedirectTo`
+ *   "/some/path"  → fail, redirect to that specific path
  */
 export async function runGuards(guards: GuardFn[], defaultRedirectTo: string): Promise<GuardResult> {
   for (const guard of guards) {
