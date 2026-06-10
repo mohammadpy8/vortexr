@@ -38,6 +38,8 @@ export function flattenRoutes(
       redirectTo,
       guardFallback: route.guardFallback,
       errorFallback,
+      loader: route.loader,
+      meta: route.meta,
     });
 
     if (route.children?.length) {

@@ -2,6 +2,9 @@ import React, { useEffect, useState, type ReactNode } from "react";
 import { RouterContext } from "../core/context";
 import { OutletContext } from "../core/outlet";
 import { routerStore } from "../core/store";
+import { LoaderProvider } from "../core/loader";
+import { NavigationContext } from "../core/navigation";
+import { RouteMetaContext } from "../core/routeMeta";
 import { matchPath } from "../utils/matcher";
 import { flattenRoutes } from "../utils/flatten";
 import { runGuards } from "../utils/guards";
@@ -10,10 +13,12 @@ import { RouteErrorBoundary } from "./ErrorBoundary";
 import type {
   FlatRoute,
   GuardResult,
+  LoaderArgs,
+  NavigationState,
   RouteConfig,
   VortexrComponent,
-  VortexrLayout,
   VortexrErrorFallback,
+  VortexrLayout,
 } from "../types";
 
 type GuardedRouteProps = {
@@ -59,13 +64,88 @@ function GuardedRoute({ route, children }: GuardedRouteProps) {
   return <>{children}</>;
 }
 
+type LoadedRouteProps = {
+  route: FlatRoute;
+  params: Record<string, string>;
+  children: ReactNode;
+  onStateChange: (state: NavigationState) => void;
+};
+
+function LoadedRoute({ route, params, children, onStateChange }: LoadedRouteProps) {
+  const [loaderData, setLoaderData] = useState<unknown>(undefined);
+  const [ready, setReady] = useState(!route.loader);
+
+  useEffect(() => {
+    if (!route.loader) {
+      setReady(true);
+      setLoaderData(undefined);
+      return;
+    }
+
+    let cancelled = false;
+    onStateChange("loading");
+
+    const args: LoaderArgs = {
+      params,
+      searchParams: new URLSearchParams(window.location.search),
+    };
+
+    Promise.resolve(route.loader(args))
+      .then((data) => {
+        if (cancelled) return;
+        setLoaderData(data);
+        setReady(true);
+        onStateChange("idle");
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        onStateChange("idle");
+        throw err;
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [route.path]);
+
+  if (!ready) return null;
+
+  return <LoaderProvider data={loaderData}>{children}</LoaderProvider>;
+}
+
+/**
+ * Syncs document.title and meta description with the active route's meta.
+ * Renders nothing — pure side effect.
+ */
+function MetaManager({ route }: { route: FlatRoute }) {
+  useEffect(() => {
+    const { meta } = route;
+    if (!meta) return;
+
+    if (meta.title && typeof meta.title === "string") {
+      document.title = meta.title;
+    }
+
+    if (meta.description && typeof meta.description === "string") {
+      let tag = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.name = "description";
+        document.head.appendChild(tag);
+      }
+      tag.content = meta.description;
+    }
+  }, [route.path, route.meta]);
+
+  return null;
+}
+
 type RouterProps = {
   routes: RouteConfig[];
   /** Custom 404 component. Defaults to built-in screen. */
   notFound?: VortexrComponent;
   /**
-   * Global error fallback for any route that crashes.
-   * Can be overridden per-route via `errorFallback` in RouteConfig.
+   * Global error fallback. Can be overridden per-route.
    *
    * @example
    * <Router
@@ -79,17 +159,42 @@ type RouterProps = {
    * />
    */
   errorFallback?: VortexrErrorFallback;
+  /**
+   * Base path for apps deployed on a subdirectory.
+   * Can also be set globally via routerStore.setBasename().
+   *
+   * @example
+   * <Router routes={routes} basename="/my-app" />
+   */
+  basename?: string;
 };
 
 /**
  * The root router.
  *
- * Matches the current URL → runs guard chain → wraps in layout chain →
- * provides RouterContext → catches render errors via ErrorBoundary.
+ * Flow per navigation:
+ *   match URL → run guards → run loader → set meta → wrap in layouts → render
+ *
+ * Provides:
+ *   RouterContext     → pathname, params, push/replace/back/forward, basename
+ *   NavigationContext → state: "idle" | "loading"
+ *   LoaderProvider    → data from the route's loader
+ *   RouteMetaContext  → meta object from the active route
+ *   OutletContext     → nested layout rendering via <Outlet />
+ *   ErrorBoundary     → catches render errors per route
  */
-export function Router({ routes, notFound: NotFound = DefaultNotFound, errorFallback }: RouterProps) {
+export function Router({ routes, notFound: NotFound = DefaultNotFound, errorFallback, basename }: RouterProps) {
   const pathname = usePathname();
   const flat = flattenRoutes(routes);
+  const [navState, setNavState] = useState<NavigationState>("idle");
+
+  useEffect(() => {
+    if (basename !== undefined) {
+      routerStore.setBasename(basename);
+    }
+  }, [basename]);
+
+  const activeBasename = basename ?? routerStore.getBasename();
 
   for (const route of flat) {
     const { matched, params } = matchPath(route.path, pathname);
@@ -97,18 +202,6 @@ export function Router({ routes, notFound: NotFound = DefaultNotFound, errorFall
 
     const Page = route.component;
 
-    /**
-     * Outlet-aware layout wrapping.
-     *
-     * Each layout receives the next inner layout (or the Page)
-     * via OutletContext, so <Outlet /> inside any layout renders
-     * the correct child automatically.
-     *
-     * Render order (outside → in):
-     *   Layout[0]
-     *     └── Layout[1]  (via <Outlet />)
-     *           └── Page (via <Outlet />)
-     */
     const wrapped = route.layouts.reduceRight<ReactNode>(
       (innerContent: ReactNode, Layout: VortexrLayout) => (
         <OutletContext.Provider value={{ outlet: innerContent }}>
@@ -121,20 +214,30 @@ export function Router({ routes, notFound: NotFound = DefaultNotFound, errorFall
     const activeFallback = route.errorFallback ?? errorFallback;
 
     return (
-      <RouterContext.Provider
-        value={{
-          pathname,
-          params,
-          push: routerStore.push.bind(routerStore),
-          replace: routerStore.replace.bind(routerStore),
-          back: routerStore.back.bind(routerStore),
-          forward: routerStore.forward.bind(routerStore),
-        }}
-      >
-        <RouteErrorBoundary fallback={activeFallback} resetKey={pathname}>
-          <GuardedRoute route={route}>{wrapped}</GuardedRoute>
-        </RouteErrorBoundary>
-      </RouterContext.Provider>
+      <NavigationContext.Provider value={{ state: navState }}>
+        <RouterContext.Provider
+          value={{
+            pathname,
+            params,
+            push: routerStore.push.bind(routerStore),
+            replace: routerStore.replace.bind(routerStore),
+            back: routerStore.back.bind(routerStore),
+            forward: routerStore.forward.bind(routerStore),
+            basename: activeBasename,
+          }}
+        >
+          <RouteMetaContext.Provider value={route.meta ?? {}}>
+            <MetaManager route={route} />
+            <RouteErrorBoundary fallback={activeFallback} resetKey={pathname}>
+              <GuardedRoute route={route}>
+                <LoadedRoute route={route} params={params} onStateChange={setNavState}>
+                  {wrapped}
+                </LoadedRoute>
+              </GuardedRoute>
+            </RouteErrorBoundary>
+          </RouteMetaContext.Provider>
+        </RouterContext.Provider>
+      </NavigationContext.Provider>
     );
   }
 

@@ -37,26 +37,56 @@ function notify(path: string): void {
   listeners.forEach((fn) => fn(path));
 }
 
+let _basename = "";
+
+function withBasename(path: string): string {
+  if (!_basename) return path;
+  return `${_basename}${path}`.replace(/\/\//g, "/");
+}
+
+function stripBasename(path: string): string {
+  if (!_basename) return path;
+  return path.startsWith(_basename) ? path.slice(_basename.length) || "/" : path;
+}
+
 /**
  * Core router store.
  * Wraps the History API and notifies all subscribers on navigation.
  */
 export const routerStore = {
   getPath(): string {
-    return window.location.pathname;
+    return stripBasename(window.location.pathname);
+  },
+
+  getBasename(): string {
+    return _basename;
+  },
+
+  /**
+   * Set a basename for all routes.
+   * Use when your app is deployed on a subdirectory.
+   *
+   * @example
+   * routerStore.setBasename("/my-app");
+   * // /dashboard → /my-app/dashboard
+   */
+  setBasename(basename: string): void {
+    _basename = basename.replace(/\/$/, "");
   },
 
   push(path: string): void {
     if (path === this.getPath()) return;
     saveScroll();
-    window.history.pushState(null, "", path);
+    const fullPath = withBasename(path);
+    window.history.pushState(null, "", fullPath);
     notify(path);
     restoreScroll(path, scrollBehavior);
   },
 
   replace(path: string): void {
     saveScroll();
-    window.history.replaceState(null, "", path);
+    const fullPath = withBasename(path);
+    window.history.replaceState(null, "", fullPath);
     notify(path);
     restoreScroll(path, scrollBehavior);
   },

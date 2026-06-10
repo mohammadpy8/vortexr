@@ -4,3 +4,6 @@ export { useNavigate } from "./useNavigate";
 export { useParams } from "./useParams";
 export { useSearchParams } from "./useSearchParams";
 export { useMatch } from "./useMatch";
+export { useLoaderData } from "./useLoaderData";
+export { useNavigation } from "./useNavigation";
+export { useRouteMeta } from "./useRouteMeta";

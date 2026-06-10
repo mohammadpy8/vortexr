@@ -21,11 +21,11 @@ export function useNavigate() {
     (to: string | number, options?: { replace?: boolean }) => {
       if (typeof to === "number") {
         if (to === -1) return back();
-        if (to === 1)  return forward();
+        if (to === 1) return forward();
         return;
       }
       options?.replace ? replace(to) : push(to);
     },
-    [push, replace, back, forward]
+    [push, replace, back, forward],
   );
 }

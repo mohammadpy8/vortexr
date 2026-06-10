@@ -50,6 +50,27 @@ export type RouteConfig = {
    * Overrides the Router-level errorFallback.
    */
   errorFallback?: VortexrErrorFallback;
+
+  /**
+   * Loader function. Runs before the route renders.
+   * Result is accessible inside the component via useLoaderData().
+   *
+   * @example
+   * loader: async ({ params }) => {
+   *   const user = await fetchUser(params.id);
+   *   return user;
+   * }
+   */
+  loader?: LoaderFn;
+
+  /**
+   * Metadata for this route.
+   * `title` automatically sets document.title when the route is active.
+   *
+   * @example
+   * meta: { title: "Dashboard", description: "User dashboard" }
+   */
+  meta?: RouteMeta;
 };
 
 export type MatchResult = {
@@ -65,6 +86,17 @@ export type FlatRoute = {
   redirectTo: string;
   guardFallback?: VortexrComponent;
   errorFallback?: VortexrErrorFallback;
+  loader?: LoaderFn;
+  meta?: RouteMeta;
+};
+
+export type RouteMeta = {
+  /** Sets document.title when this route is active. */
+  title?: string;
+  /** Meta description tag content. */
+  description?: string;
+  /** Any extra data you want to attach to a route. */
+  [key: string]: unknown;
 };
 
 export type RouterContextValue = {
@@ -74,6 +106,7 @@ export type RouterContextValue = {
   replace: (path: string) => void;
   back: () => void;
   forward: () => void;
+  basename: string;
 };
 
 export type OutletContextValue = {
@@ -81,3 +114,20 @@ export type OutletContextValue = {
 };
 
 export type Listener = (path: string) => void;
+
+export type LoaderArgs = {
+  params: Record<string, string>;
+  searchParams: URLSearchParams;
+};
+
+/**
+ * A loader function. Runs before the route renders.
+ * Can be sync or async. Return value is accessible via useLoaderData().
+ */
+export type LoaderFn<T = unknown> = (args: LoaderArgs) => T | Promise<T>;
+
+/**
+ * - "idle"    → no navigation in progress
+ * - "loading" → navigating or loader is running
+ */
+export type NavigationState = "idle" | "loading";
