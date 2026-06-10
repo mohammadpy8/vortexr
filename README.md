@@ -2,7 +2,11 @@
 
 <br />
 
-# 🌀 vortexr
+#  vortexr
+
+<p align="center">
+    <img src="./public/logo.PNG" width="80" alt="Vortexr logo" style="border-radius:8px" />
+</p>
 
 **Zero-dependency React router.**
 Nested layouts. Dynamic routes. Guard chains. Loaders. Error Boundary. Typed params. ~3kb gzipped.
