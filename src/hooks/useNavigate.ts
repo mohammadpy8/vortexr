@@ -2,17 +2,15 @@ import { useCallback } from "react";
 import { useRouter } from "./useRouter";
 
 /**
- * Alias for `useRouter` — matches the react-router naming convention.
- *
- * Supports numeric delta for back/forward:
- *   navigate(-1) → go back
- *   navigate(1)  → go forward
+ * react-router style navigation hook.
+ * Supports numeric delta for back/forward.
  *
  * @example
  * const navigate = useNavigate();
  * navigate("/dashboard");
  * navigate("/settings", { replace: true });
- * navigate(-1);
+ * navigate(-1); // go back
+ * navigate(1);  // go forward
  */
 export function useNavigate() {
   const { push, replace, back, forward } = useRouter();

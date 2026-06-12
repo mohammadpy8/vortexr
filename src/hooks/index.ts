@@ -7,3 +7,5 @@ export { useMatch } from "./useMatch";
 export { useLoaderData } from "./useLoaderData";
 export { useNavigation } from "./useNavigation";
 export { useRouteMeta } from "./useRouteMeta";
+export { useBlocker } from "./useBlocker";
+export { useActionData } from "./useActionData";

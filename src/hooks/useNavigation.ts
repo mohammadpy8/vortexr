@@ -4,17 +4,12 @@ import type { NavigationState } from "../types";
 /**
  * Returns the current navigation state.
  *
- * - `"idle"`    → nothing is happening
- * - `"loading"` → a navigation is in progress or a loader is running
- *
- * Use this to show global loading indicators.
+ * - `"idle"`    → nothing in progress
+ * - `"loading"` → navigation, loader, or lazy component is resolving
  *
  * @example
- * function GlobalSpinner() {
- *   const { state } = useNavigation();
- *   if (state === "idle") return null;
- *   return <div className="spinner" />;
- * }
+ * const { state } = useNavigation();
+ * if (state === "loading") return <Spinner />;
  */
 export function useNavigation(): { state: NavigationState } {
   return useNavigationContext();

@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import { routerStore } from "../core/store";
 
-type NavigateProps = {
+type Props = {
   to: string;
-  /** Use replaceState instead of pushState */
   replace?: boolean;
 };
 
@@ -13,9 +12,8 @@ type NavigateProps = {
  *
  * @example
  * if (!isLoggedIn) return <Navigate to="/login" />;
- * if (isAdmin)     return <Navigate to="/admin" replace />;
  */
-export function Navigate({ to, replace: useReplace = false }: NavigateProps) {
+export function Navigate({ to, replace: useReplace = false }: Props) {
   useEffect(() => {
     useReplace ? routerStore.replace(to) : routerStore.push(to);
   }, [to, useReplace]);

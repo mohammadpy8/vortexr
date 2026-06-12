@@ -2,9 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { routerStore } from "../core/store";
 
 describe("routerStore — basename", () => {
-
   beforeEach(() => {
-    // reset basename before each test
     routerStore.setBasename("");
   });
 

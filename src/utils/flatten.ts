@@ -3,11 +3,16 @@ import type { FlatRoute, GuardFn, RouteConfig, VortexrErrorFallback, VortexrLayo
 /**
  * Recursively flattens a nested route tree into a flat array.
  *
- * Each entry in the result has:
- * - Full absolute path
- * - Accumulated layout chain (outside → in)
- * - Accumulated guard chain (parent guards run first)
- * - Inherited redirectTo and errorFallback
+ * Inheritance rules:
+ *   path        → child prepends parent path
+ *   layouts     → child accumulates parent layouts (outside → in)
+ *   guards      → child inherits parent guards (parent runs first)
+ *   redirectTo  → child inherits unless it defines its own
+ *   errorFallback → child inherits unless it defines its own
+ *   loader      → NOT inherited (each route owns its own data)
+ *   meta        → NOT inherited
+ *   staleTime   → NOT inherited
+ *   prefetch    → NOT inherited
  */
 export function flattenRoutes(
   routes: RouteConfig[],
@@ -39,7 +44,10 @@ export function flattenRoutes(
       guardFallback: route.guardFallback,
       errorFallback,
       loader: route.loader,
+      staleTime: route.staleTime,
       meta: route.meta,
+      prefetch: route.prefetch,
+      action: route.action,
     });
 
     if (route.children?.length) {

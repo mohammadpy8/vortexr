@@ -7,9 +7,8 @@ import { routerStore } from "../core/store";
  *
  * @example
  * const [params, setParams] = useSearchParams();
- *
- * params.get("page");           // read  → "2"
- * setParams({ page: "3" });     // write → ?page=3
+ * params.get("page");           // → "2"
+ * setParams({ page: "3" });     // → ?page=3
  */
 export function useSearchParams(): [URLSearchParams, (params: Record<string, string>) => void] {
   const [raw, setRaw] = useState(() => new URLSearchParams(window.location.search));

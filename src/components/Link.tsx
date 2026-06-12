@@ -1,60 +1,57 @@
-import { type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from "react";
+import React, { useContext, useEffect, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from "react";
 import { routerStore } from "../core/store";
 import { usePathname } from "../hooks/usePathname";
+import { prefetchLoader } from "../utils/prefetch";
+import { PrefetchContext } from "./Router";
 
 type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   to: string;
-  /** Use replaceState instead of pushState */
   replace?: boolean;
   children: ReactNode;
+  /**
+   * Prefetch the target route's loader before navigation.
+   * - "hover"  → warm the cache when user hovers this link
+   * - "render" → warm the cache as soon as this link renders
+   * - "none"   → no prefetch (default)
+   */
+  prefetch?: "hover" | "render" | "none";
 };
 
-/**
- * Client-side navigation link. No page refresh.
- * Falls back gracefully for external URLs (http/https).
- *
- * @example
- * <Link to="/dashboard">Dashboard</Link>
- * <Link to="/settings" replace>Settings</Link>
- * <Link to="https://github.com" target="_blank">GitHub</Link>
- */
-export function Link({ to, replace: useReplace = false, children, onClick, ...rest }: LinkProps) {
+export function Link({ to, replace: useReplace = false, children, onClick, prefetch = "none", ...rest }: LinkProps) {
   const isExternal = /^https?:\/\//.test(to);
+  const flatRoutes = useContext(PrefetchContext);
+
+  function triggerPrefetch() {
+    if (prefetch === "none" || isExternal) return;
+    const route = flatRoutes.find((r) => r.path === to);
+    if (!route?.loader) return;
+    void prefetchLoader(to, route.loader, { params: {}, searchParams: new URLSearchParams() }, route.staleTime ?? 0);
+  }
+
+  useEffect(() => {
+    if (prefetch === "render") triggerPrefetch();
+  }, [to, prefetch]);
 
   function handleClick(e: MouseEvent<HTMLAnchorElement>) {
     onClick?.(e);
     if (e.defaultPrevented || isExternal) return;
     e.preventDefault();
-    useReplace ? routerStore.replace(to) : routerStore.push(to);
+    useReplace ? void routerStore.replace(to) : void routerStore.push(to);
   }
 
   return (
-    <a href={to} onClick={handleClick} {...rest}>
+    <a href={to} onClick={handleClick} onMouseEnter={prefetch === "hover" ? triggerPrefetch : undefined} {...rest}>
       {children}
     </a>
   );
 }
 
-import type React from "react";
-
 type NavLinkProps = LinkProps & {
-  /** Class applied when this link's path matches the current URL */
   activeClassName?: string;
-  /** Style applied when this link is active */
   activeStyle?: React.CSSProperties;
-  /** Exact match only (default: true) */
   exact?: boolean;
 };
 
-/**
- * Like `<Link>`, but automatically applies an active class/style
- * when the current path matches.
- *
- * @example
- * <NavLink to="/dashboard" activeClassName="font-bold text-blue-500">
- *   Dashboard
- * </NavLink>
- */
 export function NavLink({
   to,
   activeClassName = "active",

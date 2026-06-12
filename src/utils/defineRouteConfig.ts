@@ -9,12 +9,10 @@ import type { RouteConfig } from "../types";
  *   { path: "/", component: HomePage },
  *   {
  *     path: "/dashboard",
- *     component: DashboardPage,
+ *     component: lazyRoute(() => import("./pages/Dashboard")),
  *     layout: DashboardLayout,
  *     guard: isAuthenticated,
- *     children: [
- *       { path: "/settings", component: SettingsPage },
- *     ],
+ *     staleTime: 30_000,
  *   },
  * ]);
  */

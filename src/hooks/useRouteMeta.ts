@@ -6,8 +6,7 @@ import type { RouteMeta } from "../types";
  * Returns the `meta` object from the currently active route.
  *
  * @example
- * const meta = useRouteMeta();
- * // → { title: "Dashboard", description: "..." }
+ * const { title, description } = useRouteMeta();
  */
 export function useRouteMeta(): RouteMeta {
   return useContext(RouteMetaContext);
